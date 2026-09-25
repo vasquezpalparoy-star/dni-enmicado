@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grafiplot Vasquez - Diseño de Enmicados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #000;
+        }
+
+        /* LOGO TIPO GRAFIPLOT EN TEXTO */
+        .logo-g { color: #e11d48; font-weight: 900; font-size: 2.5rem; line-height: 1; }
+        .logo-txt { color: #000; font-weight: 700; font-size: 1.8rem; letter-spacing: -1px; }
+        .logo-sub { color: #000; font-weight: 400; font-size: 0.9rem; letter-spacing: 2px; text-transform: uppercase; margin-top: -8px; }
+
+        /* MEDIDAS FÍSICAS REALES (Valores por defecto, se sobreescriben via JS) */
+        .card-container {
+            width: 8.0cm;
+            height: 5.0cm;
+            position: relative;
+            box-sizing: border-box;
+            background-color: #fff;
+            display: inline-block;
+            vertical-align: top;
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .card-image-wrapper {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* OPCIÓN ESTIRAR / FORZAR */
+        .img-stretch { object-fit: fill !important; }
+        .img-cover { object-fit: cover !important; }
+        .img-contain { object-fit: contain !important; }
+
+        .cutting-border {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 20;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+        }
+
+        .card-selected {
+            outline: 4px solid #e11d48 !important;
+            box-shadow: 0 0 20px rgba(225, 29, 72, 0.3);
+        }
+
+        /* BOTONES ESTILO GRAFIPLOT */
+        .btn-grafiplot {
+            background-color: #e11d48;
+            color: white;
+            transition: all 0.2s;
+        }
+        .btn-grafiplot:hover {
+            background-color: #be123c;
+            transform: translateY(-1px);
+        }
+        .btn-dark {
+            background-color: #000;
+            color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- HEADER ESTÉTICO GRAFIPLOT -->
+    <header class="bg-white border-b-4 border-red-600 py-4 px-8 no-print shadow-sm z-50">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- LOGO EN TEXTO -->
+            <div class="flex flex-col items-start">
+                <div class="flex items-baseline">
+                    <span class="logo-g">G</span>
+                    <span class="logo-txt">rafiplot</span>
+                </div>
+                <div class="logo-sub pl-6">vasquez</div>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+                <button id="add-card-btn" class="flex items-center gap-2 btn-dark px-6 py-2 rounded-full font-bold text-sm shadow-md">
+                    <i class="fa-solid fa-plus"></i> Añadir Tarjeta
+                </button>
+                <button id="clear-all-btn" class="flex items-center gap-2 bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-full font-bold text-sm">
+                    <i class="fa-solid fa-eraser"></i> Limpiar
+                </button>
+                <button id="pdf-btn" class="flex items-center gap-2 btn-grafiplot px-8 py-3 rounded-full font-black text-base shadow-lg active:scale-95">
+                    <i class="fa-solid fa-file-pdf"></i> DESCARGAR PDF A4
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row no-print overflow-hidden">
+        
+        <!-- PANEL LATERAL -->
+        <aside class="w-full lg:w-80 bg-white border-r border-gray-200 p-6 flex flex-col gap-8 shrink-0 overflow-y-auto">
+            
+            <!-- SELECCIÓN DE TAMAÑO -->
+            <section>
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Tamaño del Documento</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button id="size-dni" class="size-btn w-full py-2 text-sm rounded-xl bg-red-600 text-white font-bold border-2 border-red-600 shadow-sm flex items-center justify-between px-4 transition-colors">
+                        <span>DNI</span>
+                        <span class="text-[10px] font-normal opacity-80">8.0 x 5.0 cm</span>
+                    </button>
+                    <button id="size-carnet" class="size-btn w-full py-2 text-sm rounded-xl bg-white text-gray-700 font-bold border-2 border-gray-200 hover:border-red-300 transition-colors flex items-center justify-between px-4">
+                        <span>Carnet</span>
+                        <span class="text-[10px] font-normal text-gray-500">7.0 x 9.8 cm</span>
+                    </button>
+                    <button id="size-yape" class="size-btn w-full py-2 text-sm rounded-xl bg-white text-gray-700 font-bold border-2 border-gray-200 hover:border-red-300 transition-colors flex items-center justify-between px-4">
+                        <span>Yape</span>
+                        <span class="text-[10px] font-normal text-gray-500">9.5 x 13.7 cm</span>
+                    </button>
+                </div>
+            </section>
+
+            <section>
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Ajuste de Imagen</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <button id="fit-fill" class="fit-btn w-full py-3 text-sm rounded-xl bg-red-600 text-white font-bold border-2 border-red-600 shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-arrows-left-right-to-line"></i> Estirar (Forzar 8x5)
+                    </button>
+                    <button id="fit-cover" class="fit-btn w-full py-3 text-sm rounded-xl bg-white text-gray-700 font-bold border-2 border-gray-200 hover:border-red-300 transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-expand"></i> Rellenar (Sin deformar)
+                    </button>
+                </div>
+                <p class="text-[10px] text-gray-500 mt-2 italic text-center">La opción "Estirar" ignora la proporción para completar la hoja.</p>
+            </section>
+
+            <section class="space-y-6">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Detalles Técnicos</h3>
+                
+                <!-- REDONDEADO -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-2">Esquinas Redondeadas</label>
+                    <input type="range" id="corner-radius" min="0" max="10" value="3" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-400 mt-1">
+                        <span>RECTO</span>
+                        <span>DNI (3mm)</span>
+                        <span>MÁX</span>
+                    </div>
+                </div>
+
+                <!-- BORDE CORTE -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-2">Grosor de Guía de Corte</label>
+                    <input type="range" id="border-width" min="0" max="1" step="0.1" value="0.1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+                    <div class="flex justify-between text-[10px] font-bold text-gray-400 mt-1">
+                        <span>INVISIBLE</span>
+                        <span>FINO</span>
+                        <span>GRUESO</span>
+                    </div>
+                </div>
+
+                <!-- SEPARACIÓN -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 mb-2">Espacio entre Tarjetas</label>
+                    <input type="range" id="cards-gap" min="0" max="5" value="0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-red-600">
+                    <div id="gap-info" class="text-center text-[10px] font-black text-red-600 mt-1">PEGADITOS (0 mm)</div>
+                </div>
+            </section>
+
+            <div class="mt-auto bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                <p class="text-[11px] text-gray-600 leading-tight">
+                    <i class="fa-solid fa-keyboard text-red-600"></i> <b>Atajo:</b> Selecciona un cuadro y presiona <b>Ctrl+V</b> para pegar tu diseño.
+                </p>
+            </div>
+        </aside>
+
+        <!-- AREA DE TRABAJO -->
+        <main class="flex-1 p-12 flex justify-center items-start overflow-auto">
+            <div id="print-sheet" class="bg-white shadow-2xl origin-top" style="width: 21cm; min-height: 29.7cm; padding: 1.5cm; transition: transform 0.2s;">
+                <!-- CABECERA INTERNA A4 -->
+                <div class="no-print border-b-2 border-red-100 pb-4 mb-8 flex justify-between items-end">
+                    <div class="text-gray-300 font-black text-3xl select-none">A4</div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-red-600">GRAFIPLOT VASQUEZ</p>
+                        <p id="sheet-subtitle" class="text-[9px] text-gray-400 tracking-tighter uppercase">Hoja Técnica de Enmicado 8x5cm</p>
+                    </div>
+                </div>
+
+                <div id="cards-grid" class="flex flex-wrap justify-center" style="gap: 0mm;">
+                    <!-- TARJETAS AQUÍ -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICACIÓN -->
+    <div id="toast" class="fixed bottom-8 right-8 z-[100] transform translate-y-20 opacity-0 transition-all duration-300">
+        <div class="bg-black text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border-2 border-red-600">
+            <i id="toast-icon" class="fa-solid fa-check text-red-600"></i>
+            <span id="toast-msg" class="text-sm font-bold tracking-tight"></span>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            cards: [],
+            selectedId: null,
+            cornerRadius: 3,
+            borderWidth: 0.1,
+            fitMode: 'fill', // 'fill' = estirar
+            gap: 0,
+            borderColor: '#e5e7eb',
+            cardWidth: '8.0cm',
+            cardHeight: '5.0cm',
+            cardName: 'DNI (8.0x5.0)'
+        };
+
+        const cardsGrid = document.getElementById('cards-grid');
+        const sheet = document.getElementById('print-sheet');
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        function createCard() {
+            const id = 'c' + Date.now();
+            state.cards.push({ id, image: null });
+            if (!state.selectedId) state.selectedId = id;
+            render();
+        }
+
+        function handlePaste(e) {
+            if (!state.selectedId) return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const card = state.cards.find(c => c.id === state.selectedId);
+                        card.image = event.target.result;
+                        render();
+                        showToast("IMAGEN PEGADA");
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        }
+
+        document.addEventListener('paste', handlePaste);
+
+        function render() {
+            cardsGrid.innerHTML = '';
+            cardsGrid.style.gap = `${state.gap}mm`;
+            document.getElementById('sheet-subtitle').textContent = `Hoja Técnica de Enmicado - ${state.cardName}`;
+
+            state.cards.forEach(card => {
+                const el = document.createElement('div');
+                el.className = `card-container group cursor-pointer border border-gray-100 ${state.selectedId === card.id ? 'card-selected' : ''}`;
+                
+                el.style.width = state.cardWidth;
+                el.style.height = state.cardHeight;
+                
+                el.onclick = (e) => { e.stopPropagation(); state.selectedId = card.id; render(); };
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'card-image-wrapper';
+                wrapper.style.borderRadius = `${state.cornerRadius}mm`;
+
+                if (card.image) {
+                    const img = document.createElement('img');
+                    img.src = card.image;
+                    img.className = `w-full h-full ${state.fitMode === 'fill' ? 'img-stretch' : state.fitMode === 'cover' ? 'img-cover' : 'img-contain'}`;
+                    wrapper.appendChild(img);
+                } else {
+                    wrapper.innerHTML = `<div class="w-full h-full bg-gray-50 flex items-center justify-center text-gray-200 text-[10px] font-bold">VACÍO</div>`;
+                }
+
+                const border = document.createElement('div');
+                border.className = 'cutting-border';
+                border.style.border = `${state.borderWidth}mm solid ${state.borderColor}`;
+                border.style.borderRadius = `${state.cornerRadius}mm`;
+
+                const del = document.createElement('button');
+                del.className = 'no-print absolute -top-2 -right-2 bg-black text-white w-6 h-6 rounded-full text-[10px] opacity-0 group-hover:opacity-100 transition-opacity z-50';
+                del.innerHTML = '✕';
+                del.onclick = (e) => { e.stopPropagation(); state.cards = state.cards.filter(c => c.id !== card.id); render(); };
+
+                el.appendChild(wrapper);
+                el.appendChild(border);
+                el.appendChild(del);
+                cardsGrid.appendChild(el);
+            });
+        }
+
+        // CONTROLES
+        document.getElementById('add-card-btn').onclick = createCard;
+        document.getElementById('clear-all-btn').onclick = () => { if(confirm('¿Limpiar todo?')){ state.cards = []; render(); } };
+        
+        document.getElementById('corner-radius').oninput = (e) => { state.cornerRadius = e.target.value; render(); };
+        document.getElementById('border-width').oninput = (e) => { state.borderWidth = e.target.value; render(); };
+        document.getElementById('cards-gap').oninput = (e) => { 
+            state.gap = e.target.value; 
+            document.getElementById('gap-info').textContent = state.gap == 0 ? "PEGADITOS (0 mm)" : state.gap + " mm";
+            render(); 
+        };
+
+        // BOTONES DE TAMAÑO
+        function updateSizeSelection(activeBtnId) {
+            document.querySelectorAll('.size-btn').forEach(b => {
+                b.classList.remove('bg-red-600', 'text-white', 'border-red-600', 'shadow-sm');
+                b.classList.add('bg-white', 'text-gray-700', 'border-gray-200');
+                const span = b.querySelector('span:last-child');
+                span.classList.remove('opacity-80', 'text-white');
+                span.classList.add('text-gray-500');
+            });
+            const activeBtn = document.getElementById(activeBtnId);
+            activeBtn.classList.remove('bg-white', 'text-gray-700', 'border-gray-200');
+            activeBtn.classList.add('bg-red-600', 'text-white', 'border-red-600', 'shadow-sm');
+            const activeSpan = activeBtn.querySelector('span:last-child');
+            activeSpan.classList.remove('text-gray-500');
+            activeSpan.classList.add('opacity-80');
+        }
+
+        document.getElementById('size-dni').onclick = () => {
+            state.cardWidth = '8.0cm'; state.cardHeight = '5.0cm'; state.cardName = 'DNI (8.0x5.0)';
+            updateSizeSelection('size-dni'); render();
+        };
+        document.getElementById('size-carnet').onclick = () => {
+            state.cardWidth = '7.0cm'; state.cardHeight = '9.8cm'; state.cardName = 'Carnet (7.0x9.8)';
+            updateSizeSelection('size-carnet'); render();
+        };
+        document.getElementById('size-yape').onclick = () => {
+            state.cardWidth = '9.5cm'; state.cardHeight = '13.7cm'; state.cardName = 'Yape (9.5x13.7)';
+            updateSizeSelection('size-yape'); render();
+        };
+
+        // BOTONES DE AJUSTE
+        document.getElementById('fit-fill').onclick = () => { 
+            state.fitMode = 'fill'; 
+            document.querySelectorAll('.fit-btn').forEach(b => b.className = b.className.replace('bg-red-600 text-white', 'bg-white text-gray-700'));
+            document.getElementById('fit-fill').className = document.getElementById('fit-fill').className.replace('bg-white text-gray-700', 'bg-red-600 text-white');
+            render(); 
+        };
+        document.getElementById('fit-cover').onclick = () => { 
+            state.fitMode = 'cover'; 
+            document.querySelectorAll('.fit-btn').forEach(b => b.className = b.className.replace('bg-red-600 text-white', 'bg-white text-gray-700'));
+            document.getElementById('fit-cover').className = document.getElementById('fit-cover').className.replace('bg-white text-gray-700', 'bg-red-600 text-white');
+            render(); 
+        };
+
+        // PDF
+        document.getElementById('pdf-btn').onclick = () => {
+            const element = document.createElement('div');
+            element.style.width = '21cm';
+            element.style.padding = '1.5cm';
+            const grid = document.createElement('div');
+            grid.style.display = 'flex';
+            grid.style.flexWrap = 'wrap';
+            grid.style.justifyContent = 'center';
+            grid.style.gap = `${state.gap}mm`;
+
+            state.cards.forEach(card => {
+                const c = document.createElement('div');
+                
+                c.style.width = state.cardWidth; 
+                c.style.height = state.cardHeight;
+                c.style.position = 'relative';
+                
+                const imgWrap = document.createElement('div');
+                imgWrap.style.width = '100%'; imgWrap.style.height = '100%';
+                imgWrap.style.overflow = 'hidden';
+                imgWrap.style.borderRadius = `${state.cornerRadius}mm`;
+                if(card.image) {
+                    const i = document.createElement('img');
+                    i.src = card.image;
+                    i.style.width = '100%'; i.style.height = '100%';
+                    i.style.objectFit = state.fitMode === 'fill' ? 'fill' : 'cover';
+                    imgWrap.appendChild(i);
+                }
+                const b = document.createElement('div');
+                b.style.position = 'absolute'; b.style.top = '0'; b.style.left = '0'; b.style.right = '0'; b.style.bottom = '0';
+                b.style.border = `${state.borderWidth}mm solid ${state.borderColor}`;
+                b.style.borderRadius = `${state.cornerRadius}mm`;
+                c.appendChild(imgWrap);
+                c.appendChild(b);
+                grid.appendChild(c);
+            });
+            element.appendChild(grid);
+
+            html2pdf().from(element).set({
+                margin: 0,
+                filename: 'grafiplot_enmicados.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 3 },
+                jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' }
+            }).save();
+        };
+
+        // Inicio
+        createCard(); createCard();
+    </script>
+</body>
+</html>
